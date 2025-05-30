@@ -1,0 +1,39 @@
+#cloud-config
+autoinstall:
+  version: 1
+  identity:
+    hostname: "ARCO-serial"  # Placeholder, será substituído
+    username: TechSupport
+    password: "$6$rounds=4096$Na4Xv8oDPBaGGG9n$WeA7o9/R.TQbR2cbpI5D8oxqEchWy2MJBxpbzBKvCzB26Pmx.6PtjIF9ldZEV2m59n6XodWErh1i/y4xym/yF/"  # @4nWrTaz@Az
+  user-data:
+    disable_root: false
+  users:
+    - name: TechSupport
+      gecos: Tech Support
+      primary_group: users
+      groups: [adm, sudo]
+      shell: /bin/bash
+      lock_passwd: false
+      passwd: "$6$rounds=4096$Na4Xv8oDPBaGGG9n$WeA7o9/R.TQbR2cbpI5D8oxqEchWy2MJBxpbzBKvCzB26Pmx.6PtjIF9ldZEV2m59n6XodWErh1i/y4xym/yF/"
+    - name: Backup
+      gecos: Backup User
+      primary_group: users
+      groups: []
+      shell: /bin/bash
+      lock_passwd: false
+      passwd: "$6$rounds=4096$PyzJ9zEtCf6MlAmY$cyRP7XMCeKX4mXpv7PU0mnM0sHhT6ewSlEx6ugEtEXDPbHZ06nQ41h0P7rdyq44ZISbrEkLbBaBpR0BZgzoJZ/"  # @rc0Educacao
+  late-commands:
+    # Refinar serial: extrair exatamente os 8 últimos caracteres visíveis
+    - curtin in-target --target=/target -- bash -c 'serial=$(cat /sys/class/dmi/id/product_serial | tr -d "\n" | tail -c 8); echo "ARCO-${serial}" > /etc/hostname'
+    - curtin in-target --target=/target -- bash -c 'serial=$(cat /sys/class/dmi/id/product_serial | tr -d "\n" | tail -c 8); sed -i "s/ubuntu/ARCO-${serial}/g" /etc/hosts'
+    - curtin in-target --target=/target -- bash -c 'serial=$(cat /sys/class/dmi/id/product_serial | tr -d "\n" | tail -c 8); hostnamectl set-hostname ARCO-${serial}'
+
+    # Atualizar pacotes e instalar curl
+    - curtin in-target --target=/target -- apt-get update
+    - curtin in-target --target=/target -- apt-get install -y curl
+
+    # Executar o script do JumpCloud
+    - curtin in-target --target=/target -- bash -c "curl --tlsv1.2 --silent --show-error --header 'x-connect-key: jcc_eyJwdWJsaWNLaWNrc3RhcnRVcmwiOiJodHRwczovL2tpY2tzdGFydC5qdW1wY2xvdWQuY29tIiwicHJpdmF0ZUtpY2tzdGFydFVybCI6Imh0dHBzOi8vcHJpdmF0ZS1raWNrc3RhcnQuanVtcGNsb3VkLmNvbSIsImNvbm5lY3RLZXkiOiIxZWYxNTdkZWM1Y2Q0NmRkZTc4NzgwY2VlZmQ5MzRiN2FiMjgyZmNjIn0g' https://kickstart.jumpcloud.com/Kickstart | bash"
+
+    # Atualização final
+    - curtin in-target --target=/target -- apt-get upgrade -y
